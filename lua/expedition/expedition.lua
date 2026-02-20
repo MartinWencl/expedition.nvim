@@ -10,7 +10,8 @@ local M = {}
 local _active = nil
 
 --- Get the project ID for the current project.
---- @return string, string project_id, root
+--- @return expedition.ProjectId project_id
+--- @return string root
 local function project_info()
   local root = storage.project_root()
   local pid = storage.project_id(root)
@@ -18,7 +19,7 @@ local function project_info()
 end
 
 --- Get the directory for an expedition.
---- @param expedition_id string
+--- @param expedition_id expedition.ExpeditionId
 --- @return string
 function M.expedition_dir(expedition_id)
   local pid = project_info()
@@ -42,6 +43,8 @@ function M.create(name, opts)
   storage.write_json(dir .. "/notes.json", {})
   -- Initialize empty route (Phase 2 stub)
   storage.write_json(dir .. "/route.json", {})
+  -- Initialize empty conditions
+  storage.write_json(dir .. "/conditions.json", {})
   -- Initialize empty branches and breadcrumbs (Phase 4)
   storage.write_json(dir .. "/branches.json", {})
   storage.write_json(dir .. "/breadcrumbs.json", {})
@@ -96,7 +99,7 @@ function M.list_names()
 end
 
 --- Load an expedition by ID and set it as active.
---- @param id string
+--- @param id expedition.ExpeditionId
 --- @return expedition.Expedition?
 function M.load(id)
   local pid = project_info()
@@ -138,7 +141,7 @@ function M.set_active(exp)
 end
 
 --- Update an expedition's fields and persist.
---- @param id string
+--- @param id expedition.ExpeditionId
 --- @param updates table
 --- @return expedition.Expedition?
 function M.update(id, updates)
@@ -166,6 +169,10 @@ function M.update(id, updates)
   end
 
   return data
+end
+
+function M._reset()
+  _active = nil
 end
 
 return M

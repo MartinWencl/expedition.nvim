@@ -133,6 +133,10 @@ function M.build_summit_eval_prompt()
   local serializer = require("expedition.serializer")
   local state = serializer.serialize({ include_log = true })
 
+  local summit = require("expedition.summit")
+  local conditions = summit.list()
+  local has_conditions = #conditions > 0
+
   local prompt = state .. [[
 
 ---
@@ -141,7 +145,18 @@ Evaluate whether this expedition is ready to be completed ("summit reached").
 Consider:
 - Are all waypoints done or abandoned?
 - Do the field notes suggest unresolved questions?
-- Is there evidence of thorough exploration?
+- Is there evidence of thorough exploration?]]
+
+  if has_conditions then
+    prompt = prompt .. [[
+
+- Evaluate each summit condition individually based on the evidence in notes and waypoint status
+- Conditions already marked "met" should be assessed as met unless evidence contradicts this
+- Conditions marked "open" need evidence from notes or completed waypoints to be considered met]]
+  end
+
+  prompt = prompt .. [=[
+
 
 Respond with JSON in this exact format:
 ```json
@@ -149,7 +164,21 @@ Respond with JSON in this exact format:
   "ready": true,
   "confidence": 0.85,
   "reasoning": "Explanation of the evaluation",
-  "remaining": ["Any remaining items to address"]
+  "remaining": ["Any remaining items to address"]]=]
+
+  if has_conditions then
+    prompt = prompt .. [=[,
+  "conditions": [
+    {
+      "id": "condition-id",
+      "assessment": "met",
+      "reasoning": "Why this condition is or is not met"
+    }
+  ]]=]
+  end
+
+  prompt = prompt .. [[
+
 }
 ```
 
@@ -157,7 +186,15 @@ Rules:
 - "ready" is a boolean: true if the expedition can be considered complete
 - "confidence" is a number between 0 and 1
 - "remaining" is an array of strings describing unfinished items (empty if ready)
-- Be honest — if there are open questions in the notes, flag them]]
+- Be honest -- if there are open questions in the notes, flag them]]
+
+  if has_conditions then
+    prompt = prompt .. [[
+
+- "conditions" array must include an assessment for each summit condition
+- Each assessment should be "met", "not_met", or "abandoned"
+- All conditions must be met or abandoned for the expedition to be ready]]
+  end
 
   return prompt, M.system_prompt()
 end

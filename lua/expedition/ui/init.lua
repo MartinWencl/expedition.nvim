@@ -29,4 +29,32 @@ function M.setup_highlights()
   require("expedition.ui.highlights").setup()
 end
 
+function M.find_notes(opts)
+  require("expedition.ui.picker").notes(opts)
+end
+
+function M.find_waypoints(opts)
+  require("expedition.ui.picker").waypoints(opts)
+end
+
+function M.find_expeditions(opts)
+  require("expedition.ui.picker").expeditions(opts)
+end
+
+function M.find_conditions(opts)
+  require("expedition.ui.picker").conditions(opts)
+end
+
+function M.find_breadcrumbs(opts)
+  require("expedition.ui.picker").breadcrumbs(opts)
+end
+
+function M.ticker_render()
+  require("expedition.ui.ticker").render()
+end
+
+function M.ticker_hide()
+  require("expedition.ui.ticker").hide()
+end
+
 return M

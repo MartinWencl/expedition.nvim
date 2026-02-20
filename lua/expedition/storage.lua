@@ -16,13 +16,13 @@ end
 
 --- Generate a stable project ID from the root path.
 --- @param root string
---- @return string
+--- @return expedition.ProjectId
 function M.project_id(root)
   return util.hash(root)
 end
 
 --- Ensure the project data directory exists and return its path.
---- @param project_id string
+--- @param project_id expedition.ProjectId
 --- @return string
 function M.ensure_project_dir(project_id)
   local config = require("expedition.config")
@@ -32,8 +32,8 @@ function M.ensure_project_dir(project_id)
 end
 
 --- Ensure an expedition subdirectory exists and return its path.
---- @param project_id string
---- @param expedition_id string
+--- @param project_id expedition.ProjectId
+--- @param expedition_id expedition.ExpeditionId
 --- @return string
 function M.ensure_expedition_dir(project_id, expedition_id)
   local project_dir = M.ensure_project_dir(project_id)
@@ -147,7 +147,7 @@ function M.delete_file(path)
 end
 
 --- Write project metadata file.
---- @param project_id string
+--- @param project_id expedition.ProjectId
 --- @param root string
 function M.write_project_meta(project_id, root)
   local dir = M.ensure_project_dir(project_id)

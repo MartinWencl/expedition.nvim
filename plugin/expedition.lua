@@ -41,3 +41,31 @@ end, { desc = "Toggle campfire brainstorm" })
 vim.keymap.set("n", "<Plug>(ExpeditionSummit)", function()
   require("expedition").summit()
 end, { desc = "AI summit evaluation" })
+
+vim.keymap.set("n", "<Plug>(ExpeditionFindNotes)", function()
+  require("expedition.ui.picker").notes()
+end, { desc = "Find expedition notes" })
+
+vim.keymap.set("n", "<Plug>(ExpeditionFindWaypoints)", function()
+  require("expedition.ui.picker").waypoints()
+end, { desc = "Find expedition waypoints" })
+
+vim.keymap.set("n", "<Plug>(ExpeditionFindExpeditions)", function()
+  require("expedition.ui.picker").expeditions()
+end, { desc = "Find expeditions" })
+
+vim.keymap.set("n", "<Plug>(ExpeditionFindConditions)", function()
+  require("expedition.ui.picker").conditions()
+end, { desc = "Find summit conditions" })
+
+vim.keymap.set("n", "<Plug>(ExpeditionFindBreadcrumbs)", function()
+  require("expedition.ui.picker").breadcrumbs()
+end, { desc = "Find breadcrumbs" })
+
+vim.keymap.set("n", "<Plug>(ExpeditionAddGoal)", function()
+  vim.ui.input({ prompt = "Summit condition: " }, function(text)
+    if text and text ~= "" then
+      require("expedition").add_summit_condition(text)
+    end
+  end)
+end, { desc = "Add summit condition" })

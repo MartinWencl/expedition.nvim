@@ -22,6 +22,7 @@ function M.setup()
     { "ExpeditionProposalPending", { default = true, link = "DiagnosticHint" } },
     { "ExpeditionCampfireUser", { default = true, link = "Statement" } },
     { "ExpeditionCampfireThinking", { default = true, link = "Comment" } },
+    { "ExpeditionTicker", { default = true, link = "Normal" } },
   }
   for _, g in ipairs(groups) do
     vim.api.nvim_set_hl(0, g[1], g[2])

@@ -82,6 +82,30 @@ function M.serialize_waypoint(wp)
   return table.concat(parts, "\n")
 end
 
+--- Serialize a single summit condition to text.
+--- @param condition expedition.SummitCondition
+--- @return string
+function M.serialize_condition(condition)
+  local markers = { open = "[ ]", met = "[x]", abandoned = "[~]" }
+  local marker = markers[condition.status] or "[ ]"
+  return marker .. " " .. condition.text .. " [" .. condition.id .. "]"
+end
+
+--- Serialize all summit conditions to text.
+--- @param conditions expedition.SummitCondition[]
+--- @return string
+function M.serialize_conditions(conditions)
+  if #conditions == 0 then
+    return ""
+  end
+  local parts = { "## Summit Conditions", "" }
+  for _, c in ipairs(conditions) do
+    table.insert(parts, "- " .. M.serialize_condition(c))
+  end
+  table.insert(parts, "")
+  return table.concat(parts, "\n")
+end
+
 --- Serialize the full route (all waypoints) to text.
 --- @param waypoints expedition.Waypoint[]
 --- @return string
@@ -112,6 +136,14 @@ function M.serialize(opts)
 
   local parts = {}
   table.insert(parts, M.serialize_expedition(active))
+
+  -- Summit conditions section (between header and notes so AI sees goals first)
+  local summit = require("expedition.summit")
+  local conditions = summit.list()
+  local cond_text = M.serialize_conditions(conditions)
+  if cond_text ~= "" then
+    table.insert(parts, cond_text)
+  end
 
   local notes = note_mod.list()
   if #notes > 0 then

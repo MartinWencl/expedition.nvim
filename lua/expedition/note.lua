@@ -76,7 +76,7 @@ function M.for_file(rel_path)
 end
 
 --- Get a note by ID.
---- @param note_id string
+--- @param note_id expedition.NoteId
 --- @return expedition.Note?
 function M.get(note_id)
   local notes = read_notes()
@@ -89,7 +89,7 @@ function M.get(note_id)
 end
 
 --- Update a note's fields.
---- @param note_id string
+--- @param note_id expedition.NoteId
 --- @param changes table
 --- @return expedition.Note?
 function M.update(note_id, changes)
@@ -116,7 +116,7 @@ function M.update(note_id, changes)
 end
 
 --- Delete a note by ID.
---- @param note_id string
+--- @param note_id expedition.NoteId
 --- @return boolean
 function M.delete(note_id)
   local active = expedition_mod.get_active()

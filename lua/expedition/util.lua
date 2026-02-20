@@ -11,7 +11,7 @@ function M.id()
 end
 
 --- Return current time as ISO 8601 string.
---- @return string
+--- @return expedition.Timestamp
 function M.timestamp()
   return os.date("!%Y-%m-%dT%H:%M:%SZ")
 end

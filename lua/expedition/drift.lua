@@ -47,7 +47,7 @@ function M.check(payload)
 end
 
 --- Acknowledge drift on a specific note: re-snapshot and clear drift status.
---- @param note_id string
+--- @param note_id expedition.NoteId
 function M.acknowledge(note_id)
   local expedition_mod = require("expedition.expedition")
   local active = expedition_mod.get_active()

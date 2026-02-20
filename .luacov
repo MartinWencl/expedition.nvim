@@ -1,0 +1,10 @@
+return {
+  include = {
+    "^lua/expedition/",
+  },
+  exclude = {
+    "^spec/",
+  },
+  runreport = true,
+  deletestats = true,
+}

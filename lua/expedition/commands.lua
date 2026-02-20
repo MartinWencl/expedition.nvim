@@ -369,6 +369,12 @@ subcommands.summit = function(_)
         "  Confidence: " .. string.format("%.0f%%", eval.confidence * 100),
         "  " .. eval.reasoning,
       }
+      if eval.conditions and #eval.conditions > 0 then
+        table.insert(lines, "  Conditions:")
+        for _, ca in ipairs(eval.conditions) do
+          table.insert(lines, "    " .. ca.assessment .. " [" .. ca.id .. "]: " .. ca.reasoning)
+        end
+      end
       if #eval.remaining > 0 then
         table.insert(lines, "  Remaining:")
         for _, item in ipairs(eval.remaining) do
@@ -470,6 +476,114 @@ subcommands.breadcrumbs = function(args)
   end
 end
 
+subcommands.goal = function(args)
+  local summit = require("expedition.summit")
+  local sub = args[1]
+
+  if not sub or sub == "" or sub == "list" then
+    -- List conditions with status markers
+    local conditions = summit.list()
+    if #conditions == 0 then
+      vim.notify("[expedition] no summit conditions", vim.log.levels.INFO)
+      return
+    end
+    local markers = { open = "[ ]", met = "[x]", abandoned = "[~]" }
+    local lines = { "Summit Conditions:" }
+    for _, c in ipairs(conditions) do
+      local marker = markers[c.status] or "[ ]"
+      table.insert(lines, string.format("  %s %s [%s]", marker, c.text, c.id))
+    end
+    vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO)
+    return
+  end
+
+  if sub == "add" then
+    local text = table.concat(vim.list_slice(args, 2), " ")
+    if text == "" then
+      vim.notify("[expedition] usage: :Expedition goal add <text>", vim.log.levels.ERROR)
+      return
+    end
+    local c = summit.create(text)
+    if c then
+      vim.notify("[expedition] condition created: " .. c.text .. " (" .. c.id .. ")", vim.log.levels.INFO)
+    end
+
+  elseif sub == "met" then
+    local id = args[2]
+    if not id then
+      vim.notify("[expedition] usage: :Expedition goal met <id>", vim.log.levels.ERROR)
+      return
+    end
+    local c = summit.set_status(id, "met")
+    if c then
+      vim.notify("[expedition] condition marked met: " .. c.text, vim.log.levels.INFO)
+    end
+
+  elseif sub == "reopen" then
+    local id = args[2]
+    if not id then
+      vim.notify("[expedition] usage: :Expedition goal reopen <id>", vim.log.levels.ERROR)
+      return
+    end
+    local c = summit.set_status(id, "open")
+    if c then
+      vim.notify("[expedition] condition reopened: " .. c.text, vim.log.levels.INFO)
+    end
+
+  elseif sub == "abandon" then
+    local id = args[2]
+    if not id then
+      vim.notify("[expedition] usage: :Expedition goal abandon <id>", vim.log.levels.ERROR)
+      return
+    end
+    local c = summit.set_status(id, "abandoned")
+    if c then
+      vim.notify("[expedition] condition abandoned: " .. c.text, vim.log.levels.INFO)
+    end
+
+  elseif sub == "delete" then
+    local id = args[2]
+    if not id then
+      vim.notify("[expedition] usage: :Expedition goal delete <id>", vim.log.levels.ERROR)
+      return
+    end
+    vim.ui.select({ "Yes", "No" }, { prompt = "Delete condition " .. id .. "?" }, function(choice)
+      if choice == "Yes" then
+        if summit.delete(id) then
+          vim.notify("[expedition] condition deleted", vim.log.levels.INFO)
+        end
+      end
+    end)
+
+  else
+    vim.notify("[expedition] unknown goal subcommand: " .. sub, vim.log.levels.ERROR)
+  end
+end
+
+subcommands.find = function(args)
+  local picker = require("expedition.ui.picker")
+  local sub = args[1]
+
+  if not sub or sub == "" then
+    vim.notify("[expedition] usage: :Expedition find <notes|waypoints|expeditions|conditions|breadcrumbs>", vim.log.levels.ERROR)
+    return
+  end
+
+  if sub == "notes" then
+    picker.notes()
+  elseif sub == "waypoints" then
+    picker.waypoints()
+  elseif sub == "expeditions" then
+    picker.expeditions()
+  elseif sub == "conditions" then
+    picker.conditions()
+  elseif sub == "breadcrumbs" then
+    picker.breadcrumbs()
+  else
+    vim.notify("[expedition] unknown find target: " .. sub, vim.log.levels.ERROR)
+  end
+end
+
 subcommands.status = function(_)
   local expedition_mod = require("expedition.expedition")
   local active = expedition_mod.get_active()
@@ -494,6 +608,15 @@ subcommands.status = function(_)
     if wp.status == "active" then wp_active = wp_active + 1 end
   end
 
+  local summit = require("expedition.summit")
+  local conditions = summit.list()
+  local cond_met = 0
+  local cond_open = 0
+  for _, c in ipairs(conditions) do
+    if c.status == "met" then cond_met = cond_met + 1 end
+    if c.status == "open" then cond_open = cond_open + 1 end
+  end
+
   local lines = {
     "Expedition: " .. active.name,
     "  ID: " .. active.id,
@@ -501,6 +624,7 @@ subcommands.status = function(_)
     "  Created: " .. active.created_at,
     "  Notes: " .. #notes .. " (" .. anchored .. " anchored)",
     "  Waypoints: " .. #waypoints .. " (" .. wp_done .. " done, " .. wp_active .. " active)",
+    "  Conditions: " .. #conditions .. " (" .. cond_met .. " met, " .. cond_open .. " open)",
   }
   vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO)
 end
@@ -567,6 +691,35 @@ function M.register()
           return vim.tbl_filter(function(name)
             return name:find(arg_lead, 1, true) == 1
           end, bc_subs)
+        end
+      elseif subcmd == "goal" then
+        if #parts == 3 then
+          local goal_subs = { "add", "met", "reopen", "abandon", "delete", "list" }
+          return vim.tbl_filter(function(name)
+            return name:find(arg_lead, 1, true) == 1
+          end, goal_subs)
+        elseif #parts == 4 then
+          local goal_sub = parts[3]
+          if goal_sub == "met" or goal_sub == "reopen" or goal_sub == "abandon" or goal_sub == "delete" then
+            local ok_s, summit_mod = pcall(require, "expedition.summit")
+            if ok_s then
+              local conds = summit_mod.list()
+              local ids = {}
+              for _, c in ipairs(conds) do
+                table.insert(ids, c.id)
+              end
+              return vim.tbl_filter(function(id)
+                return id:find(arg_lead, 1, true) == 1
+              end, ids)
+            end
+          end
+        end
+      elseif subcmd == "find" then
+        if #parts == 3 then
+          local find_subs = { "notes", "waypoints", "expeditions", "conditions", "breadcrumbs" }
+          return vim.tbl_filter(function(name)
+            return name:find(arg_lead, 1, true) == 1
+          end, find_subs)
         end
       elseif subcmd == "route" then
         if #parts == 3 then

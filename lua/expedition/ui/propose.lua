@@ -4,6 +4,7 @@ local M = {}
 
 local _buf = nil
 local _win = nil
+--- @type expedition.AiProposal?
 local _proposal = nil
 local _statuses = {} -- index → "accepted"|"rejected"
 
@@ -12,6 +13,7 @@ local NS = vim.api.nvim_create_namespace("expedition_propose")
 --- Render the proposal buffer contents.
 local function render()
   if not _buf or not vim.api.nvim_buf_is_valid(_buf) then return end
+  if not _proposal then return end
 
   vim.bo[_buf].modifiable = true
   local lines = {}

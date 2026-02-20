@@ -36,6 +36,16 @@ function M.setup(opts)
   require("expedition.presets").register()
   require("expedition.breadcrumbs").register()
 
+  -- Register statusline cache invalidation
+  if config.val("statusline.enabled") then
+    require("expedition.statusline").register()
+  end
+
+  -- Register ticker widget
+  if config.val("ticker.enabled") then
+    require("expedition.ui.ticker").register()
+  end
+
   -- Dispatch setup hook
   require("expedition.hooks").dispatch("setup", { config = config.get() })
 
@@ -59,7 +69,7 @@ function M.list()
 end
 
 --- Load an expedition by ID.
---- @param id string
+--- @param id expedition.ExpeditionId
 --- @return expedition.Expedition?
 function M.load(id)
   assert_ready()
@@ -125,7 +135,7 @@ function M.add_note(opts)
 end
 
 --- Delete a note by ID.
---- @param id string
+--- @param id expedition.NoteId
 --- @return boolean
 function M.delete_note(id)
   assert_ready()
@@ -165,7 +175,7 @@ function M.get_route(branch)
 end
 
 --- Set a waypoint's status.
---- @param id string
+--- @param id expedition.WaypointId
 --- @param status string
 --- @return expedition.Waypoint?
 function M.set_waypoint_status(id, status)
@@ -174,8 +184,8 @@ function M.set_waypoint_status(id, status)
 end
 
 --- Link a note to a waypoint (bidirectional).
---- @param note_id string
---- @param wp_id string
+--- @param note_id expedition.NoteId
+--- @param wp_id expedition.WaypointId
 --- @return boolean
 function M.link_note_to_waypoint(note_id, wp_id)
   assert_ready()
@@ -195,6 +205,65 @@ end
 --- Run summit evaluation.
 function M.summit()
   vim.cmd("Expedition summit")
+end
+
+--- Add a summit condition (goal) to the active expedition.
+--- @param text string
+--- @return expedition.SummitCondition?
+function M.add_summit_condition(text)
+  assert_ready()
+  return require("expedition.summit").create(text)
+end
+
+--- List all summit conditions for the active expedition.
+--- @return expedition.SummitCondition[]
+function M.list_summit_conditions()
+  assert_ready()
+  return require("expedition.summit").list()
+end
+
+--- Set a summit condition's status.
+--- @param id expedition.ConditionId
+--- @param status "open"|"met"|"abandoned"
+--- @return expedition.SummitCondition?
+function M.set_condition_status(id, status)
+  assert_ready()
+  return require("expedition.summit").set_status(id, status)
+end
+
+--- Open telescope picker for notes.
+--- @param opts table?
+function M.find_notes(opts)
+  assert_ready()
+  require("expedition.ui.picker").notes(opts)
+end
+
+--- Open telescope picker for waypoints.
+--- @param opts table?
+function M.find_waypoints(opts)
+  assert_ready()
+  require("expedition.ui.picker").waypoints(opts)
+end
+
+--- Open telescope picker for expeditions.
+--- @param opts table?
+function M.find_expeditions(opts)
+  assert_ready()
+  require("expedition.ui.picker").expeditions(opts)
+end
+
+--- Open telescope picker for conditions.
+--- @param opts table?
+function M.find_conditions(opts)
+  assert_ready()
+  require("expedition.ui.picker").conditions(opts)
+end
+
+--- Open telescope picker for breadcrumbs.
+--- @param opts table?
+function M.find_breadcrumbs(opts)
+  assert_ready()
+  require("expedition.ui.picker").breadcrumbs(opts)
 end
 
 return M

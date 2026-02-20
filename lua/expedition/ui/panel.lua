@@ -7,7 +7,7 @@ local M = {}
 local _buf = nil
 --- @type number?
 local _win = nil
---- @type table<number, { type: "note"|"waypoint", id: string }> line number → entry mapping
+--- @type table<number, { type: "note"|"waypoint"|"condition", id: expedition.NoteId|expedition.WaypointId|expedition.ConditionId }> line number → entry mapping
 local _line_map = {}
 
 --- Namespace for waypoint status highlights in the panel buffer.
@@ -31,6 +31,20 @@ local STATUS_HL = {
   abandoned = "ExpeditionWaypointAbandoned",
 }
 
+--- Status icons for condition display.
+local CONDITION_ICONS = {
+  open      = "  [ ] ",
+  met       = "  [x] ",
+  abandoned = "  [~] ",
+}
+
+--- Highlight group names per condition status (reuse waypoint groups).
+local CONDITION_HL = {
+  open      = "ExpeditionWaypointReady",
+  met       = "ExpeditionWaypointDone",
+  abandoned = "ExpeditionWaypointAbandoned",
+}
+
 --- Check if the panel is open.
 --- @return boolean
 function M.is_open()
@@ -47,7 +61,7 @@ function M.close()
 end
 
 --- Get the typed entry under the cursor, or nil.
---- @return { type: "note"|"waypoint", id: string }?
+--- @return { type: "note"|"waypoint"|"condition", id: expedition.NoteId|expedition.WaypointId|expedition.ConditionId }?
 local function get_entry_under_cursor()
   if not _buf then return nil end
   local cursor = vim.api.nvim_win_get_cursor(0)
@@ -64,7 +78,7 @@ local function navigate_to_note()
   local note = note_mod.get(entry.id)
   if not note or not note.anchor then return end
 
-  local anchor = note.anchor
+  local anchor = note.anchor --[[@as expedition.Anchor]]
   local storage = require("expedition.storage")
   local root = storage.project_root()
   local abs_path = root .. "/" .. anchor.file
@@ -153,6 +167,39 @@ local function expand_waypoint()
   vim.notify(table.concat(parts, "\n"), vim.log.levels.INFO)
 end
 
+--- Toggle condition met/open on condition under cursor.
+local function toggle_condition()
+  local entry = get_entry_under_cursor()
+  if not entry or entry.type ~= "condition" then return end
+
+  local summit = require("expedition.summit")
+  local c = summit.get(entry.id)
+  if not c then return end
+
+  if c.status == "met" then
+    summit.set_status(entry.id, "open")
+  else
+    summit.set_status(entry.id, "met")
+  end
+end
+
+--- Expand condition details via vim.notify.
+local function expand_condition()
+  local entry = get_entry_under_cursor()
+  if not entry or entry.type ~= "condition" then return end
+
+  local summit = require("expedition.summit")
+  local c = summit.get(entry.id)
+  if not c then return end
+
+  local parts = {
+    "Condition: " .. c.text .. " [" .. c.id .. "]",
+    "Status: " .. c.status,
+    "Created: " .. c.created_at,
+  }
+  vim.notify(table.concat(parts, "\n"), vim.log.levels.INFO)
+end
+
 --- Handle <CR> dispatcher: navigate for notes, expand for waypoints.
 local function handle_cr()
   local entry = get_entry_under_cursor()
@@ -161,6 +208,8 @@ local function handle_cr()
     navigate_to_note()
   elseif entry.type == "waypoint" then
     expand_waypoint()
+  elseif entry.type == "condition" then
+    expand_condition()
   end
 end
 
@@ -273,18 +322,29 @@ local function link_note_to_waypoint()
   end)
 end
 
---- Apply extmark-based status highlighting to waypoint lines.
-local function apply_waypoint_highlights(lines)
+--- Apply extmark-based status highlighting to waypoint and condition lines.
+local function apply_status_highlights(lines)
   if not _buf or not vim.api.nvim_buf_is_valid(_buf) then return end
   vim.api.nvim_buf_clear_namespace(_buf, _ns, 0, -1)
   for line_nr, entry in pairs(_line_map) do
-    if entry.type == "waypoint" and line_nr <= #lines then
-      local route = require("expedition.route")
-      local wp = route.get(entry.id)
-      if wp then
-        local hl = STATUS_HL[wp.status]
-        if hl then
-          vim.api.nvim_buf_add_highlight(_buf, _ns, hl, line_nr - 1, 0, -1)
+    if line_nr <= #lines then
+      if entry.type == "waypoint" then
+        local route = require("expedition.route")
+        local wp = route.get(entry.id)
+        if wp then
+          local hl = STATUS_HL[wp.status]
+          if hl then
+            vim.api.nvim_buf_add_highlight(_buf, _ns, hl, line_nr - 1, 0, -1)
+          end
+        end
+      elseif entry.type == "condition" then
+        local summit = require("expedition.summit")
+        local c = summit.get(entry.id)
+        if c then
+          local hl = CONDITION_HL[c.status]
+          if hl then
+            vim.api.nvim_buf_add_highlight(_buf, _ns, hl, line_nr - 1, 0, -1)
+          end
         end
       end
     end
@@ -310,6 +370,24 @@ function M.refresh()
     table.insert(lines, "  Status: " .. active.status)
     table.insert(lines, string.rep("─", 38))
     table.insert(lines, "")
+
+    -- Summit conditions section
+    local summit = require("expedition.summit")
+    local conditions = summit.list()
+    if #conditions > 0 then
+      table.insert(lines, "  Summit Conditions")
+      table.insert(lines, "")
+      for _, c in ipairs(conditions) do
+        local icon = CONDITION_ICONS[c.status] or "  [ ] "
+        local text = c.text
+        if #text > 28 then
+          text = text:sub(1, 25) .. "..."
+        end
+        table.insert(lines, icon .. text)
+        _line_map[#lines] = { type = "condition", id = c.id }
+      end
+      table.insert(lines, "")
+    end
 
     -- Get all notes
     local notes = note_mod.list()
@@ -449,12 +527,13 @@ function M.refresh()
   vim.api.nvim_buf_set_lines(_buf, 0, -1, false, lines)
   vim.bo[_buf].modifiable = false
 
-  -- Apply waypoint status highlights
-  apply_waypoint_highlights(lines)
+  -- Apply status highlights for waypoints and conditions
+  apply_status_highlights(lines)
 end
 
 --- Open the panel.
---- @return number, number buf, win
+--- @return number? buf
+--- @return number? win
 function M.open()
   if M.is_open() then
     M.refresh()
@@ -486,6 +565,8 @@ function M.open()
     vim.keymap.set("n", "o", add_waypoint_from_panel, { buffer = _buf, desc = "Add waypoint" })
     vim.keymap.set("n", "D", add_dependency_from_panel, { buffer = _buf, desc = "Add dependency" })
     vim.keymap.set("n", "l", link_note_to_waypoint, { buffer = _buf, desc = "Link note to waypoint" })
+    -- Condition keymaps
+    vim.keymap.set("n", "c", toggle_condition, { buffer = _buf, desc = "Toggle condition met/open" })
     vim.keymap.set("n", "K", function()
       local entry = get_entry_under_cursor()
       if entry and entry.type == "note" then
@@ -550,6 +631,10 @@ hooks.on("waypoint.status_changed", schedule_refresh)
 hooks.on("waypoint.deleted", schedule_refresh)
 hooks.on("waypoint.note_linked", schedule_refresh)
 hooks.on("note.drift_detected", schedule_refresh)
+hooks.on("condition.created", schedule_refresh)
+hooks.on("condition.updated", schedule_refresh)
+hooks.on("condition.status_changed", schedule_refresh)
+hooks.on("condition.deleted", schedule_refresh)
 hooks.on("branch.created", schedule_refresh)
 hooks.on("branch.switched", schedule_refresh)
 hooks.on("branch.merged", schedule_refresh)

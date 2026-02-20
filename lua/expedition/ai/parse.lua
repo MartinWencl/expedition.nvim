@@ -103,11 +103,27 @@ function M.parse_summit_eval(text)
     return nil, "Summit evaluation must contain a boolean 'ready' field"
   end
 
+  -- Parse optional per-condition assessments
+  local conditions = nil
+  if type(data.conditions) == "table" and #data.conditions > 0 then
+    conditions = {}
+    for _, ca in ipairs(data.conditions) do
+      if type(ca.id) == "string" then
+        table.insert(conditions, {
+          id = ca.id,
+          assessment = ca.assessment or "not_met",
+          reasoning = ca.reasoning or "",
+        })
+      end
+    end
+  end
+
   return {
     ready = data.ready,
     confidence = tonumber(data.confidence) or 0,
     reasoning = data.reasoning or "",
     remaining = data.remaining or {},
+    conditions = conditions,
   }
 end
 

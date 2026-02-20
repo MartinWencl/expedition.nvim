@@ -3,30 +3,38 @@ local util = require("expedition.util")
 
 local M = {}
 
+--- @alias expedition.ExpeditionId string 8-char hex expedition identifier
+--- @alias expedition.WaypointId string 8-char hex waypoint identifier
+--- @alias expedition.NoteId string 8-char hex note identifier
+--- @alias expedition.ConditionId string 8-char hex condition identifier
+--- @alias expedition.Timestamp string ISO 8601 (e.g. "2025-01-01T00:00:00Z")
+--- @alias expedition.ProjectId string FNV-1a hash of project root path
+
 --- @class expedition.Expedition
---- @field id string
+--- @field id expedition.ExpeditionId
 --- @field name string
 --- @field description string
---- @field created_at string ISO 8601
---- @field updated_at string
+--- @field created_at expedition.Timestamp ISO 8601
+--- @field updated_at expedition.Timestamp
 --- @field status "active"|"paused"|"completed"|"archived"
 --- @field meta table freeform extension point
 
 --- @class expedition.ExpeditionSummary
---- @field id string
+--- @field id expedition.ExpeditionId
 --- @field name string
 --- @field status "active"|"paused"|"completed"|"archived"
---- @field created_at string
+--- @field created_at expedition.Timestamp
 --- @field note_count number
 
 --- @class expedition.Note
---- @field id string
---- @field expedition_id string
+--- @field id expedition.NoteId
+--- @field expedition_id expedition.ExpeditionId
 --- @field body string
 --- @field tags string[]
 --- @field anchor expedition.Anchor?
---- @field created_at string
---- @field updated_at string
+--- @field created_at expedition.Timestamp
+--- @field updated_at expedition.Timestamp
+--- @field drift_status "ok"|"drifted"?
 --- @field meta table Phase 2: { waypoint_id = "..." }
 
 --- @class expedition.Anchor
@@ -38,21 +46,28 @@ local M = {}
 --- @field snapshot_lines string[]
 
 --- @class expedition.Waypoint
---- @field id string
+--- @field id expedition.WaypointId
 --- @field title string
 --- @field description string
 --- @field status "blocked"|"ready"|"active"|"done"|"abandoned"
---- @field depends_on string[]         -- waypoint IDs
+--- @field depends_on expedition.WaypointId[] waypoint IDs
 --- @field reasoning string
---- @field linked_note_ids string[]
+--- @field linked_note_ids expedition.NoteId[]
 --- @field branch string
---- @field created_at string
---- @field updated_at string
+--- @field created_at expedition.Timestamp
+--- @field updated_at expedition.Timestamp
+
+--- @class expedition.SummitCondition
+--- @field id expedition.ConditionId
+--- @field text string
+--- @field status "open"|"met"|"abandoned"
+--- @field created_at expedition.Timestamp
+--- @field updated_at expedition.Timestamp
 
 --- @class expedition.LogEntry
---- @field timestamp string
+--- @field timestamp expedition.Timestamp
 --- @field event string e.g. "expedition.created", "note.created"
---- @field expedition_id string
+--- @field expedition_id expedition.ExpeditionId
 --- @field data table
 
 --- Create a new Expedition object.
@@ -74,7 +89,7 @@ function M.new_expedition(name, opts)
 end
 
 --- Create a new Note object.
---- @param expedition_id string
+--- @param expedition_id expedition.ExpeditionId
 --- @param body string
 --- @param opts table?
 --- @return expedition.Note
@@ -131,6 +146,22 @@ function M.new_waypoint(title, opts)
   }
 end
 
+--- Create a new SummitCondition object.
+--- @param text string
+--- @param opts table?
+--- @return expedition.SummitCondition
+function M.new_summit_condition(text, opts)
+  opts = opts or {}
+  local now = util.timestamp()
+  return {
+    id = util.id(),
+    text = text,
+    status = opts.status or "open",
+    created_at = now,
+    updated_at = now,
+  }
+end
+
 --- @class expedition.ProposedWaypoint
 --- @field title string
 --- @field description string
@@ -144,23 +175,29 @@ end
 --- @class expedition.CampfireMessage
 --- @field role "user"|"assistant"
 --- @field content string
---- @field timestamp string
+--- @field timestamp expedition.Timestamp
 
 --- @class expedition.SummitEvaluation
 --- @field ready boolean
 --- @field confidence number
 --- @field reasoning string
 --- @field remaining string[]
+--- @field conditions expedition.ConditionAssessment[]?
+
+--- @class expedition.ConditionAssessment
+--- @field id expedition.ConditionId
+--- @field assessment "met"|"not_met"|"abandoned"
+--- @field reasoning string
 
 --- @class expedition.Branch
 --- @field name string
 --- @field reasoning string
---- @field created_at string
+--- @field created_at expedition.Timestamp
 
 --- @class expedition.Breadcrumb
 --- @field file string project-relative path
 --- @field line number cursor line at time of visit
---- @field timestamp string ISO 8601
+--- @field timestamp expedition.Timestamp ISO 8601
 
 --- Create a new Branch object.
 --- @param name string
@@ -200,7 +237,7 @@ end
 
 --- Create a new LogEntry object.
 --- @param event string
---- @param expedition_id string
+--- @param expedition_id expedition.ExpeditionId
 --- @param data table
 --- @return expedition.LogEntry
 function M.new_log_entry(event, expedition_id, data)

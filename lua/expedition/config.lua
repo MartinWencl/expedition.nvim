@@ -24,6 +24,7 @@ local M = {}
 --- @field toggle_panel string
 --- @field next_note string
 --- @field prev_note string
+--- @field find_notes string
 
 --- @class expedition.LogConfig
 --- @field enabled boolean
@@ -54,6 +55,20 @@ local M = {}
 --- @field enabled boolean
 --- @field max_entries number
 
+--- @class expedition.StatuslineConfig
+--- @field enabled boolean
+
+--- @class expedition.TickerShowConfig
+--- @field active_waypoint boolean
+--- @field progress boolean
+--- @field next_up number
+--- @field events boolean
+
+--- @class expedition.TickerConfig
+--- @field enabled boolean
+--- @field show expedition.TickerShowConfig
+--- @field event_timeout number
+
 --- @class expedition.Config
 --- @field data_dir string
 --- @field signs expedition.SignsConfig
@@ -66,6 +81,8 @@ local M = {}
 --- @field ai expedition.AiConfig
 --- @field hooks table
 --- @field breadcrumbs expedition.BreadcrumbsConfig
+--- @field statusline expedition.StatuslineConfig
+--- @field ticker expedition.TickerConfig
 
 --- @type expedition.Config
 local defaults = {
@@ -79,6 +96,7 @@ local defaults = {
     toggle_panel = "<leader>ep",
     next_note = "]n",
     prev_note = "[n",
+    find_notes = "<leader>ef",
   },
   log = { enabled = true },
   route = { default_branch = "main" },
@@ -105,6 +123,19 @@ local defaults = {
     enabled = false,
     max_entries = 1000,
   },
+  statusline = {
+    enabled = true,
+  },
+  ticker = {
+    enabled = false,
+    show = {
+      active_waypoint = true,
+      progress = true,
+      next_up = 2,
+      events = true,
+    },
+    event_timeout = 4000,
+  },
 }
 
 --- @type expedition.Config?
@@ -122,6 +153,7 @@ function M.apply(opts)
     { mode = { "n" }, lhs = cfg.keymaps.toggle_panel, plug = "<Plug>(ExpeditionTogglePanel)" },
     { mode = { "n" }, lhs = cfg.keymaps.next_note, plug = "<Plug>(ExpeditionNextNote)" },
     { mode = { "n" }, lhs = cfg.keymaps.prev_note, plug = "<Plug>(ExpeditionPrevNote)" },
+    { mode = { "n" }, lhs = cfg.keymaps.find_notes, plug = "<Plug>(ExpeditionFindNotes)" },
   }
   for _, m in ipairs(maps) do
     if vim.fn.hasmapto(m.plug) == 0 then

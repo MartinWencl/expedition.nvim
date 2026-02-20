@@ -122,24 +122,49 @@ function M._register_ai_drift_review()
   table.insert(_active, unreg)
 end
 
---- auto_summit_eval: On waypoint.status_changed to done, trigger summit if all done.
-function M._register_auto_summit_eval()
-  local unreg = hooks.on("waypoint.status_changed", function(payload)
-    if payload.to ~= "done" then return end
-
-    local route = require("expedition.route")
-    local waypoints = route.list()
-    for _, wp in ipairs(waypoints) do
-      if wp.status ~= "done" and wp.status ~= "abandoned" then
-        return
-      end
+--- Check if all waypoints and conditions are done/met/abandoned.
+--- @return boolean
+local function all_complete()
+  local route = require("expedition.route")
+  local waypoints = route.list()
+  for _, wp in ipairs(waypoints) do
+    if wp.status ~= "done" and wp.status ~= "abandoned" then
+      return false
     end
+  end
+
+  local summit = require("expedition.summit")
+  local conditions = summit.list()
+  for _, c in ipairs(conditions) do
+    if c.status ~= "met" and c.status ~= "abandoned" then
+      return false
+    end
+  end
+
+  return true
+end
+
+--- auto_summit_eval: On waypoint or condition completion, trigger summit if all done.
+function M._register_auto_summit_eval()
+  local unreg_wp = hooks.on("waypoint.status_changed", function(payload)
+    if payload.to ~= "done" and payload.to ~= "abandoned" then return end
+    if not all_complete() then return end
 
     vim.schedule(function()
       vim.cmd("Expedition summit")
     end)
   end)
-  table.insert(_active, unreg)
+  table.insert(_active, unreg_wp)
+
+  local unreg_cond = hooks.on("condition.status_changed", function(payload)
+    if payload.to ~= "met" and payload.to ~= "abandoned" then return end
+    if not all_complete() then return end
+
+    vim.schedule(function()
+      vim.cmd("Expedition summit")
+    end)
+  end)
+  table.insert(_active, unreg_cond)
 end
 
 return M

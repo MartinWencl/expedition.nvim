@@ -64,7 +64,7 @@ end
 
 --- Build a lookup table from waypoint ID → waypoint.
 --- @param waypoints expedition.Waypoint[]
---- @return table<string, expedition.Waypoint>
+--- @return table<expedition.WaypointId, expedition.Waypoint>
 local function index_by_id(waypoints)
   local idx = {}
   for _, wp in ipairs(waypoints) do
@@ -162,8 +162,8 @@ end
 --- Check if adding dep_id as a dependency of wp_id would create a cycle.
 --- Returns true if it WOULD create a cycle.
 --- @param waypoints expedition.Waypoint[]
---- @param wp_id string
---- @param dep_id string
+--- @param wp_id expedition.WaypointId
+--- @param dep_id expedition.WaypointId
 --- @return boolean
 function M.would_cycle(waypoints, wp_id, dep_id)
   -- Adding dep_id as a dependency of wp_id creates the edge wp_id → dep_id.
@@ -244,7 +244,7 @@ function M.create_waypoint(opts)
 end
 
 --- Update a waypoint's non-status fields.
---- @param id string
+--- @param id expedition.WaypointId
 --- @param changes table
 --- @return expedition.Waypoint?
 function M.update_waypoint(id, changes)
@@ -279,7 +279,7 @@ function M.update_waypoint(id, changes)
 end
 
 --- Set a waypoint's explicit status with transition validation.
---- @param id string
+--- @param id expedition.WaypointId
 --- @param status string
 --- @return expedition.Waypoint?
 function M.set_status(id, status)
@@ -361,7 +361,7 @@ function M.get_ready()
 end
 
 --- Get a single waypoint by ID (with computed status).
---- @param id string
+--- @param id expedition.WaypointId
 --- @return expedition.Waypoint?
 function M.get(id)
   local waypoints = read_route()
@@ -375,7 +375,7 @@ function M.get(id)
 end
 
 --- Delete a waypoint, cleaning up all references.
---- @param id string
+--- @param id expedition.WaypointId
 --- @return boolean
 function M.delete_waypoint(id)
   local active = expedition_mod.get_active()
@@ -434,8 +434,8 @@ function M.delete_waypoint(id)
 end
 
 --- Add a dependency (with cycle check).
---- @param wp_id string
---- @param dep_id string
+--- @param wp_id expedition.WaypointId
+--- @param dep_id expedition.WaypointId
 --- @return boolean
 function M.add_dependency(wp_id, dep_id)
   local active = expedition_mod.get_active()
@@ -492,8 +492,8 @@ function M.add_dependency(wp_id, dep_id)
 end
 
 --- Remove a dependency.
---- @param wp_id string
---- @param dep_id string
+--- @param wp_id expedition.WaypointId
+--- @param dep_id expedition.WaypointId
 --- @return boolean
 function M.remove_dependency(wp_id, dep_id)
   local active = expedition_mod.get_active()
@@ -534,8 +534,8 @@ function M.remove_dependency(wp_id, dep_id)
 end
 
 --- Link a note to a waypoint (bidirectional).
---- @param note_id string
---- @param wp_id string
+--- @param note_id expedition.NoteId
+--- @param wp_id expedition.WaypointId
 --- @return boolean
 function M.link_note(note_id, wp_id)
   local active = expedition_mod.get_active()
@@ -580,8 +580,8 @@ function M.link_note(note_id, wp_id)
 end
 
 --- Unlink a note from a waypoint (bidirectional).
---- @param note_id string
---- @param wp_id string
+--- @param note_id expedition.NoteId
+--- @param wp_id expedition.WaypointId
 --- @return boolean
 function M.unlink_note(note_id, wp_id)
   local active = expedition_mod.get_active()
@@ -859,6 +859,10 @@ function M.merge_branch(source, target)
     string.format("[expedition] merged %d waypoint(s) from %s to %s", count, source, target),
     vim.log.levels.INFO
   )
+end
+
+function M._reset()
+  _active_branch = nil
 end
 
 return M
